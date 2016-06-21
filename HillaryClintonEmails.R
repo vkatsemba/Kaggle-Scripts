@@ -2,7 +2,7 @@
 title: "Hillary Clinton Emails"
 author: "Vadim Katsemba"
 date: "December 21, 2015"
-output: html_document
+output: pdf_document
 ---
 
 The Hillary Clinton email controversy is still ongoing, let's investigate some of the emails.
@@ -13,17 +13,17 @@ library(RSQLite)
 database <- dbConnect(dbDriver("SQLite"), "database.sqlite")
 ```
 
-Then we shall look at 5 random e-mail senders.
+Then we shall look at who the most common senders were.
 ```{r}
 senders <- dbGetQuery(database, "SELECT p.Name, COUNT(p.Name) SentEmails
 FROM Emails e
 INNER JOIN Persons p ON e.SenderPersonId=p.Id
 GROUP BY p.Name
-ORDER BY RANDOM() DESC
+ORDER BY COUNT(p.Name) DESC
 LIMIT 5")
 ```
 
-We shall use a bar graph to represent the number of emails sent for every random sender.
+We shall use a bar graph to represent the number of emails sent for every sender.
 ```{r}
 library(ggplot2)
 ggplot(senders, aes(x=reorder(Name, SentEmails), y=SentEmails)) + geom_bar(stat="identity") + labs(x="Sender", y="Emails Sent")
@@ -36,11 +36,11 @@ FROM Emails e
 INNER JOIN EmailReceivers r ON r.EmailId=e.Id
 INNER JOIN Persons p ON r.PersonId=p.Id
 GROUP BY p.Name
-ORDER BY RANDOM() DESC
+ORDER BY COUNT(p.Name) DESC
 LIMIT 5")
 ```
 
-And again, a bar graph represents the amount of emails for every random recipient.
+And again, a bar graph represents the amount of emails for every recipient.
 ```{r}
 library(ggplot2)
 ggplot(recipients, aes(x=reorder(Name, ReceivedEmails), y=ReceivedEmails)) + geom_bar(stat="identity") + labs(x="Recipient", y="Emails Received")
