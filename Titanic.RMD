@@ -1,0 +1,142 @@
+---
+title: "Classifying Titanic Passengers as Survivors or Victims"
+output: html_document
+---
+
+We will explore the Titanic dataset and build a model that will predict whether or not a passenger survived or not.
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)         
+library(ggplot2)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(randomForest)
+```
+
+
+```{r}
+train <- read.csv("C:\\Users\\Vadim_Katsemba\\Downloads\\Titanictrain.csv")
+test <- read.csv("C:\\Users\\Vadim_Katsemba\\Downloads\\Titanictest.csv")
+```
+
+```{r}
+test$Survived <- NA
+all_data <- rbind(train, test)
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(Age, fill = factor(Survived))) + geom_histogram(bins = 30) + xlab("Age") + scale_fill_discrete(name = "Survived") + ggtitle("Survivors by Age")
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(Sex, fill = factor(Survived))) + geom_bar(stat = "count", position = "dodge") + xlab("Sex") + scale_fill_discrete(name = "Survived") + ggtitle("Survivors by Sex")
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(Age, fill = factor(Survived))) + geom_histogram(bins = 30) + xlab("Age") + facet_grid(.~Sex) + scale_fill_discrete(name = "Survived") + ggtitle("Survivors by Age and Sex")
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(Pclass, fill = factor(Survived))) + geom_bar(stat = "count") + xlab("Pclass") + facet_grid(.~Sex) + scale_fill_discrete(name = "Survived") + ggtitle("Survivors by Passenger Class and Sex")
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(x = Age, y = Sex)) +
+  geom_jitter(aes(colour = factor(Survived))) +
+  facet_wrap(~Pclass) +
+  labs(x = "Age", y = "Sex", title = "Survivors by Age, Sex and Passenger Class") +
+  scale_fill_discrete(name = "Survived") +
+  scale_x_continuous(name = "Age", limits = c(0, 81))
+```
+
+```{r}
+all_data$Title <- gsub('(.*, )|(\\..*)', '', all_data$Name)
+table(all_data$Sex, all_data$Title)
+```
+
+```{r}
+officer <- c('Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev')
+royalty <- c('Dona', 'Lady', 'the Countess','Sir', 'Jonkheer')
+
+all_data$Title[all_data$Title == 'Mlle']        <- 'Miss' 
+all_data$Title[all_data$Title == 'Ms']          <- 'Miss'
+all_data$Title[all_data$Title == 'Mme']         <- 'Mrs' 
+all_data$Title[all_data$Title %in% royalty]  <- 'Royalty'
+all_data$Title[all_data$Title %in% officer]  <- 'Officer'
+```
+
+```{r}
+ggplot(all_data[1:891,], aes(Title,fill = factor(Survived))) +
+  geom_bar(stat = "count")+
+  xlab('Title') +
+  scale_fill_discrete(name = " Survived") + 
+  ggtitle("Survivors by Title")
+```
+
+```{r}
+all_data$FamilySize <- all_data$SibSp + all_data$Parch + 1
+
+ggplot(all_data[1:891,], aes(x = FamilySize, fill = factor(Survived))) +
+  geom_bar(stat='count', position='dodge') +
+  scale_x_continuous(breaks=c(1:11)) +
+  xlab('Family Size') +
+  scale_fill_discrete(name = "Survived") + 
+  ggtitle("Survivors by Family Size")
+```
+
+```{r}
+all_data$Sex <- factor(all_data$Sex)
+all_data$Title <- factor(all_data$Title)
+all_data$Pclass <- factor(all_data$Pclass)
+all_data$FamilySize <- factor(all_data$FamilySize)
+all_data$Embarked <- factor(all_data$Embarked)
+```
+
+```{r}
+features <- all_data[1:891, c("Pclass", "Title", "Sex", "Embarked","FamilySize")]
+response <- as.factor(train$Survived)
+features$Survived <- as.factor(train$Survived)
+```
+
+```{r}
+set.seed(1234)
+inTrain <- createDataPartition(features$Survived, times = 1, p = 0.8, list = FALSE)
+train_eval = features[inTrain,]
+test_eval = features[-inTrain,]
+
+round(prop.table(table(train$Survived)*100), digits = 2)
+```
+
+```{r}
+round(prop.table(table(train_eval$Survived)*100), digits = 2)
+```
+
+```{r}
+round(prop.table(table(test_eval$Survived)*100), digits = 2)
+```
+
+```{r message=FALSE, warning=FALSE}
+set.seed(1234)
+DT_model <- train(Survived ~., data = train_eval, method = "rpart")
+
+library(rattle)
+fancyRpartPlot(DT_model$finalModel)
+```
+
+```{r}
+DT_Pred <- predict(DT_model, data = train_eval, type = "raw")
+confusionMatrix(DT_Pred, train_eval$Survived)
+```
+
+
+```{r}
+set.seed(1234)
+rf_model <- randomForest(x = train_eval[,-6], y = train_eval[, 6], importance = TRUE, ntree = 1000)
+```
+
+```{r}
+rf_predict <- predict(rf_model, newdata = test_eval)
+confusionMatrix(rf_predict, test_eval$Survived)
+```
+
